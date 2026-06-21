@@ -1,0 +1,27 @@
+﻿@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        Are you sure you want to delete this product?
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Delete" Color="Color.Error">Yes</MudButton>
+        <MudButton OnClick="Cancel">No</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private void Delete()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

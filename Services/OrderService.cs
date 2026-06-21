@@ -17,6 +17,13 @@ namespace BlazorAppEcommerce.Services
             _logger = logger;
             _context = context;
         }
+        public int AddOrder(Order order)
+        {
+            _context.Orders.Add(order);
+            _context.SaveChanges();
+
+            return order.order_Id;
+        }
 
         public object GetOrders(ClaimsPrincipal currentUser)
         {

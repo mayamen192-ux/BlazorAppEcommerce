@@ -1,0 +1,83 @@
+﻿@page "/EditProduct/{id:int}"
+
+@using BlazorAppEcommerce.DTOs
+@using BlazorAppEcommerce.Services
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ProductService ProductService
+@inject NavigationManager Navigation
+
+<h3>Edit Product</h3>
+
+@if (editProduct == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <EditForm Model="editProduct" OnValidSubmit="SaveProduct">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Product Name</label>
+            <InputText class="form-control"
+                       @bind-Value="editProduct.Name" />
+        </div>
+
+        <div class="mb-3">
+            <label>Price</label>
+            <InputNumber class="form-control"
+                         @bind-Value="editProduct.Price" />
+        </div>
+
+        <div class="mb-3">
+            <label>Description</label>
+            <InputTextArea class="form-control"
+                           @bind-Value="editProduct.Description" />
+        </div>
+
+        <div class="mb-3">
+            <label>Stock</label>
+            <InputNumber class="form-control"
+                         @bind-Value="editProduct.Stock" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Save
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="Cancel">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private ProductDOT? editProduct;
+
+    protected override void OnInitialized()
+    {
+        editProduct = ProductService.GetProductById(id);
+    }
+
+    private void SaveProduct()
+    {
+        if (editProduct == null)
+            return;
+
+        ProductService.UpdateProduct(editProduct);
+
+        Navigation.NavigateTo("/products");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/products");
+    }
+}

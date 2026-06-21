@@ -1,0 +1,44 @@
+﻿@page "/AddProduct"
+@using BlazorAppEcommerce.DTOs
+@using BlazorAppEcommerce.Services
+@inject ProductService ProductService
+@inject NavigationManager NavigationManager
+
+<h3>Add Product</h3>
+
+<EditForm Model="@product" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label>Name</label>
+        <InputText class="form-control" @bind-Value="product.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label>Description</label>
+        <InputTextArea class="form-control" @bind-Value="product.Description" />
+    </div>
+
+    <div class="mb-3">
+        <label>Price</label>
+        <InputNumber class="form-control" @bind-Value="product.Price" />
+    </div>
+
+    <div class="mb-3">
+        <label>Stock</label>
+        <InputNumber class="form-control" @bind-Value="product.Stock" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</EditForm>
+
+@code {
+    private ProductDOT product = new();
+
+    private void HandleSubmit()
+    {
+        var newId = ProductService.AddProduct(product);
+        NavigationManager.NavigateTo("/products");
+    }
+}

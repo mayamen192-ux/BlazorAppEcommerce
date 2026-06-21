@@ -1,0 +1,139 @@
+﻿@page "/products"
+@using BlazorAppEcommerce.DTOs
+@using BlazorAppEcommerce.Services
+@inject ProductService ProductService
+@inject NavigationManager Navigation
+
+
+<h3>Product List</h3>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" class="form-control" placeholder="Search by name"
+               @bind="searchName" @bind:event="oninput" />
+    </div>
+    <div class="col-md-3">
+        <input type="number" class="form-control" placeholder="Min price" @bind="minPrice" />
+    </div>
+    <div class="col-md-3">
+        <input type="number" class="form-control" placeholder="Max price" @bind="maxPrice" />
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+    </div>
+</div>
+
+@if (products == null)
+{
+    <p>Loading...</p>
+}
+else if (products.Count == 0)
+{
+    <p>No products found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Description</th>
+                <th>Stock</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in products)
+            {
+                <tr>
+                    <td>@product.Id</td>
+                    <td>@product.Name</td>
+                    <td>@product.Price.ToString("C")</td>
+                    <td>@product.Description</td>
+                    <td>@product.Stock</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditProduct(product.Id)">Edit</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteConfirmation(product.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-secondary" @onclick="PreviousPage" disabled="@(pageNumber <= 1)">Previous</button>
+        <span>Page @pageNumber</span>
+        <button class="btn btn-secondary" @onclick="NextPage" disabled="@(products.Count < pageSize)">Next</button>
+    </div>
+
+    <ConfirmationModel @ref="confirmationModal"
+                       Title="Delete Product"
+                       Message="Are you sure you want to delete this product?"
+                       OnConfirm="HandleConfirmation" />
+}
+
+@code {
+    private List<ProductDOT>? products;
+    private ConfirmationModel? confirmationModal;
+    private int productIdToDelete;
+
+    private string? searchName;
+    private decimal? minPrice;
+    private decimal? maxPrice;
+
+    private int pageNumber = 1;
+    private readonly int pageSize = 10;
+
+    protected override void OnInitialized()
+    {
+        LoadProducts();
+    }
+
+    private void LoadProducts()
+    {
+        products = ProductService.GetProducts(searchName, minPrice, maxPrice, pageNumber, pageSize);
+    }
+
+    private void Search()
+    {
+        pageNumber = 1;
+        LoadProducts();
+    }
+
+    private void NextPage()
+    {
+        pageNumber++;
+        LoadProducts();
+    }
+
+    private void PreviousPage()
+    {
+        if (pageNumber > 1)
+        {
+            pageNumber--;
+            LoadProducts();
+        }
+    }
+
+    private void EditProduct(int id)
+    {
+        Navigation.NavigateTo($"/EditProduct/{id}");
+    }
+
+    private void ShowDeleteConfirmation(int productId)
+    {
+        productIdToDelete = productId;
+        confirmationModal?.Show();
+    }
+
+    private void HandleConfirmation(bool confirmed)
+    {
+        if (confirmed)
+        {
+            ProductService.DeleteProductById(productIdToDelete);
+            LoadProducts();
+        }
+    }
+}

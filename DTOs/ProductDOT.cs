@@ -1,22 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace BlazorAppEcommerce.DTOs
+﻿namespace BlazorAppEcommerce.DTOs
 {
     public class ProductDOT
     {
-        [Required]
-        public string Name { get; set; }
-
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
-
-        [Required]
-        [Range(0.01, double.MaxValue)]
-
-
         public decimal Price { get; set; }
-
-        [Required]
-        [Range(0, int.MaxValue)]
         public int? Stock { get; set; }
     }
 }
