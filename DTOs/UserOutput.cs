@@ -1,0 +1,10 @@
+﻿namespace BlazorAppEcommerce.DTOs
+{
+    public class UserOutput
+    {
+        public string name { get; set; }
+        public string email { get; set; }
+        public string phone { get; set; }
+        public List<OrderOutput> orders { get; set; }
+    }
+}
