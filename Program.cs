@@ -16,10 +16,16 @@ namespace BlazorAppEcommerce
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            builder.Services.AddDbContext<ApplicationDbContext>(
-                options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-                );
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+     options.UseSqlServer(
+         builder.Configuration.GetConnectionString("DefaultConnection"),
+         sqlOptions =>
+         {
+             sqlOptions.EnableRetryOnFailure(
+                 maxRetryCount: 5,
+                 maxRetryDelay: TimeSpan.FromSeconds(30),
+                 errorNumbersToAdd: null);
+         }));
             // Add MudBlazor services
             builder.Services.AddMudServices();
 
