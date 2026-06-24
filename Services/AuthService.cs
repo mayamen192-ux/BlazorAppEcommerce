@@ -1,9 +1,9 @@
 ﻿using BlazorAppEcommerce.Models;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.JSInterop;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace BlazorAppEcommerce.Services
 {
@@ -11,13 +11,16 @@ namespace BlazorAppEcommerce.Services
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly AuthenticationStateProvider _authStateProvider;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             IHttpContextAccessor httpContextAccessor,
-            AuthenticationStateProvider authStateProvider)
+            AuthenticationStateProvider authStateProvider,
+            ILogger<AuthService> logger)
         {
             _httpContextAccessor = httpContextAccessor;
             _authStateProvider = authStateProvider;
+            _logger = logger;
         }
 
         // =========================
@@ -25,25 +28,47 @@ namespace BlazorAppEcommerce.Services
         // =========================
         public async Task<bool> Login(User user)
         {
-            var claims = new List<Claim>
+            try
             {
-                new Claim(ClaimTypes.Name, user.name),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Role, user.role)
-            };
+                _logger.LogInformation(
+                    "Login attempt | UserID: {UserId} | Username: {Username} | Role: {Role}",
+                    user.Id, user.name, user.role);
 
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.name),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Role, user.role)
+                };
 
-            await _httpContextAccessor.HttpContext!
-                .SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
 
-            if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
-            {
-                customProvider.MarkUserAsAuthenticated(user.name, user.role);
+                await _httpContextAccessor.HttpContext!
+                    .SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+                if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
+                {
+                    customProvider.MarkUserAsAuthenticated(user.name, user.role);
+                    _logger.LogInformation(
+                        "Authentication state updated for UserID: {UserId} | Username: {Username}",
+                        user.Id, user.name);
+                }
+
+                _logger.LogInformation(
+                    "User logged in successfully | UserID: {UserId} | Username: {Username} | Role: {Role}",
+                    user.Id, user.name, user.role);
+
+                return true;
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error occurred during login for UserID: {UserId} | Username: {Username}",
+                    user.Id, user.name);
 
-            return true;
+                return false;
+            }
         }
 
         // =========================
@@ -51,12 +76,32 @@ namespace BlazorAppEcommerce.Services
         // =========================
         public async Task Logout()
         {
-            await _httpContextAccessor.HttpContext!
-                .SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-            if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
+            try
             {
-                customProvider.MarkUserAsLoggedOut();
+                var httpContext = _httpContextAccessor.HttpContext;
+
+                var username = httpContext?.User?.Identity?.Name ?? "Unknown";
+
+                _logger.LogWarning(
+                    "Logout initiated for Username: {Username}", username);
+
+                await httpContext!
+                    .SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+                if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
+                {
+                    customProvider.MarkUserAsLoggedOut();
+                    _logger.LogInformation(
+                        "Authentication state cleared for Username: {Username}", username);
+                }
+
+                _logger.LogInformation(
+                    "User logged out successfully | Username: {Username}", username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error occurred during logout.");
             }
         }
     }
