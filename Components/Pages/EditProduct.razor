@@ -1,79 +1,122 @@
 ﻿@page "/EditProduct/{id:int}"
+@rendermode InteractiveServer
 
 @using BlazorAppEcommerce.DTOs
 @using BlazorAppEcommerce.Services
-@using Microsoft.AspNetCore.Components.Forms
 
 @inject ProductService ProductService
 @inject NavigationManager Navigation
 
-<h3>Edit Product</h3>
+<div class="container mt-4">
 
-@if (editProduct == null)
-{
-    <p>Loading...</p>
-}
-else
-{
-    <EditForm Model="editProduct" OnValidSubmit="SaveProduct">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+    <h3>Edit Product</h3>
 
-        <div class="mb-3">
-            <label>Product Name</label>
-            <InputText class="form-control"
-                       @bind-Value="editProduct.Name" />
+    @if (loading)
+    {
+        <p>Loading product...</p>
+    }
+    else if (!found)
+    {
+        <div class="alert alert-danger">
+            Product not found.
         </div>
+    }
+    else
+    {
+        <EditForm Model="editProduct"
+                  OnValidSubmit="SaveProduct">
 
-        <div class="mb-3">
-            <label>Price</label>
-            <InputNumber class="form-control"
-                         @bind-Value="editProduct.Price" />
-        </div>
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-        <div class="mb-3">
-            <label>Description</label>
-            <InputTextArea class="form-control"
-                           @bind-Value="editProduct.Description" />
-        </div>
+            <div class="mb-3">
+                <label>Name</label>
+                <InputText class="form-control"
+                           @bind-Value="editProduct.Name" />
+            </div>
 
-        <div class="mb-3">
-            <label>Stock</label>
-            <InputNumber class="form-control"
-                         @bind-Value="editProduct.Stock" />
-        </div>
+            <div class="mb-3">
+                <label>Price</label>
+                <InputNumber class="form-control"
+                             @bind-Value="editProduct.Price" />
+            </div>
 
-        <button type="submit" class="btn btn-primary">
-            Save
-        </button>
+            <div class="mb-3">
+                <label>Stock</label>
+                <InputNumber class="form-control"
+                             @bind-Value="editProduct.Stock" />
+            </div>
 
-        <button type="button"
-                class="btn btn-secondary"
-                @onclick="Cancel">
-            Cancel
-        </button>
-    </EditForm>
-}
+            <div class="mb-3">
+                <label>Description</label>
+                <InputTextArea class="form-control"
+                               @bind-Value="editProduct.Description" />
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">
+                Save Changes
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="Cancel">
+                Cancel
+            </button>
+
+        </EditForm>
+    }
+
+</div>
 
 @code {
+
     [Parameter]
     public int id { get; set; }
 
-    private ProductDOT? editProduct;
+    private ProductDOT editProduct = new();
 
-    protected override void OnInitialized()
+    private bool loading = true;
+    private bool found = true;
+
+    protected override async Task OnParametersSetAsync()
     {
-        editProduct = ProductService.GetProductById(id);
+        loading = true;
+
+        try
+        {
+            var result = await ProductService.GetProductById(id);
+
+            if (result == null)
+            {
+                found = false;
+            }
+            else
+            {
+                found = true;
+                editProduct = result;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            found = false;
+        }
+
+        loading = false;
     }
 
-    private void SaveProduct()
+    private async Task SaveProduct()
     {
-        if (editProduct == null)
-            return;
+        try
+        {
+            await ProductService.UpdateProduct(editProduct);
 
-        ProductService.UpdateProduct(editProduct);
-
-        Navigation.NavigateTo("/products");
+            Navigation.NavigateTo("/products", true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
     }
 
     private void Cancel()

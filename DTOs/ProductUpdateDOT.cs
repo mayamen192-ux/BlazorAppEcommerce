@@ -4,6 +4,7 @@ namespace BlazorAppEcommerce.DTOs
 {
     public class ProductUpdateDOT
     {
+        public int Id { get; set; }
         [Required]
         public string Name { get; set; }
 

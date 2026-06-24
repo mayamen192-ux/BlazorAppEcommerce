@@ -1,6 +1,6 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 
-namespace BlazorAppEcommerce.Helpers
+namespace BlazorAppEcommerce.Heplers
 {
     public class JwtHelper
     {

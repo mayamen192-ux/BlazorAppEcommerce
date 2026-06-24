@@ -1,0 +1,19 @@
+﻿@using BlazorAppEcommerce.DTOs
+@inject ProductService ProductService
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private ProductDOT product = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ProductService.GetProductById(Id);
+
+        if (result != null)
+        {
+            product = result;
+        }
+    }
+}

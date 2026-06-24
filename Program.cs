@@ -1,120 +1,116 @@
 using BlazorAppEcommerce;
+using BlazorAppEcommerce.Components;
+using BlazorAppEcommerce.Helpers;
 using BlazorAppEcommerce.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using MudBlazor.Services;
-using System.Text;
 
-namespace BlazorAppEcommerce
-{
-    public class Program
+var builder = WebApplication.CreateBuilder(args);
+
+var configuration = builder.Configuration;
+
+//
+// =====================
+// DATABASE
+// =====================
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+
+//
+// =====================
+// APPLICATION SERVICES
+// =====================
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<SellerService>();
+builder.Services.AddScoped<ClientService>();
+builder.Services.AddScoped<CompoudedServices>();
+builder.Services.AddScoped<CountriesService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<ProductImagesService>();
+builder.Services.AddScoped<ProductReviewService>();
+builder.Services.AddScoped<OrderService>();
+
+//
+// =====================
+// AUTH STATE PROVIDER
+// =====================
+builder.Services.AddScoped<CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
+    sp.GetRequiredService<CustomAuthenticationStateProvider>());
+
+//
+// =====================
+// AUTHENTICATION + AUTHORIZATION
+// =====================
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/login";
+    });
 
-            // Add services to the container.
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-     options.UseSqlServer(
-         builder.Configuration.GetConnectionString("DefaultConnection"),
-         sqlOptions =>
-         {
-             sqlOptions.EnableRetryOnFailure(
-                 maxRetryCount: 5,
-                 maxRetryDelay: TimeSpan.FromSeconds(30),
-                 errorNumbersToAdd: null);
-         }));
-            // Add MudBlazor services
-            builder.Services.AddMudServices();
+builder.Services.AddAuthorization();
 
-            builder.Services.AddScoped<UserService>();
-            builder.Services.AddScoped<ProductService>();
-            builder.Services.AddScoped<OrderService>();
-            builder.Services.AddScoped<CompoudedServices>();
+//
+// IMPORTANT for Blazor auth UI
+//
+builder.Services.AddCascadingAuthenticationState();
 
-            builder.Services.AddControllers();
+//
+// =====================
+// MUD BLAZOR
+// =====================
+builder.Services.AddMudServices();
 
-            // Add Blazor Razor Components (this was missing — needed to serve Home, Products, AddProduct, etc.)
-            builder.Services.AddRazorComponents()
-                .AddInteractiveServerComponents();
+//
+// =====================
+// RAZOR COMPONENTS
+// =====================
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
 
-            // Add JWT Authentication
-            var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"];
+//
+// =====================
+// HTTP CLIENT
+// =====================
+builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 
-            if (string.IsNullOrEmpty(secretKey))
-            {
-                throw new InvalidOperationException("JwtSettings:SecretKey is missing from configuration.");
-            }
+var app = builder.Build();
 
-            builder.Services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-                };
-            });
-
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(c =>
-            {
-                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-                {
-                    Description = "JWT Authorization header using the Bearer scheme (Example: 'Bearer <token>')",
-                    Name = "Authorization",
-                    In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "bearer",
-                    BearerFormat = "JWT"
-                });
-
-                c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
-                {
-                    [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
-                });
-            });
-
-            var app = builder.Build();
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-            else
-            {
-                app.UseExceptionHandler("/Error", createScopeForErrors: true);
-            }
-
-            app.UseHttpsRedirection();
-
-            app.MapStaticAssets();
-
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.UseAntiforgery();
-
-            // Map Blazor Razor Components (this was missing)
-            app.MapRazorComponents<BlazorAppEcommerce.Components.App>()
-                .AddInteractiveServerRenderMode();
-
-            app.MapControllers();
-
-            app.Run();
-        }
-    }
+//
+// =====================
+// PIPELINE
+// =====================
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+app.UseRouting();
+
+//
+// AUTH MIDDLEWARE (IMPORTANT ORDER)
+//
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseAntiforgery();
+
+//
+// =====================
+// MAP RAZOR COMPONENTS
+// =====================
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();

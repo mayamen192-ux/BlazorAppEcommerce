@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlazorAppEcommerce.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260622074333_InitialCreate")]
+    [Migration("20260622123608_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -24,6 +24,50 @@ namespace BlazorAppEcommerce.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Client", b =>
+                {
+                    b.Property<int>("CId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CId"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Clients");
+                });
 
             modelBuilder.Entity("BlazorAppEcommerce.Models.Order", b =>
                 {
@@ -75,6 +119,9 @@ namespace BlazorAppEcommerce.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
@@ -90,7 +137,31 @@ namespace BlazorAppEcommerce.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.ProductImage", b =>
+                {
+                    b.Property<int>("imageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("imageId"));
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("imagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("imageId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
                 });
 
             modelBuilder.Entity("BlazorAppEcommerce.Models.Review", b =>
@@ -123,6 +194,27 @@ namespace BlazorAppEcommerce.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Seller", b =>
+                {
+                    b.Property<int>("SId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SId"));
+
+                    b.Property<int>("SellerRating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Sellers");
                 });
 
             modelBuilder.Entity("BlazorAppEcommerce.Models.User", b =>
@@ -164,6 +256,47 @@ namespace BlazorAppEcommerce.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("MiniAmazonSimulation.Data.Model.ProductReview", b =>
+                {
+                    b.Property<int>("RId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RId"));
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReviewContent")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("RId");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductReviews");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Client", b =>
+                {
+                    b.HasOne("BlazorAppEcommerce.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BlazorAppEcommerce.Models.Order", b =>
                 {
                     b.HasOne("BlazorAppEcommerce.Models.User", "User")
@@ -194,6 +327,26 @@ namespace BlazorAppEcommerce.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Product", b =>
+                {
+                    b.HasOne("BlazorAppEcommerce.Models.Category", "Category")
+                        .WithMany("Products")
+                        .HasForeignKey("CategoryId");
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.ProductImage", b =>
+                {
+                    b.HasOne("BlazorAppEcommerce.Models.Product", "product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("product");
+                });
+
             modelBuilder.Entity("BlazorAppEcommerce.Models.Review", b =>
                 {
                     b.HasOne("BlazorAppEcommerce.Models.Product", "Product")
@@ -211,6 +364,41 @@ namespace BlazorAppEcommerce.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Seller", b =>
+                {
+                    b.HasOne("BlazorAppEcommerce.Models.User", "user")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("user");
+                });
+
+            modelBuilder.Entity("MiniAmazonSimulation.Data.Model.ProductReview", b =>
+                {
+                    b.HasOne("BlazorAppEcommerce.Models.Client", "client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BlazorAppEcommerce.Models.Product", "product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("client");
+
+                    b.Navigation("product");
+                });
+
+            modelBuilder.Entity("BlazorAppEcommerce.Models.Category", b =>
+                {
+                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("BlazorAppEcommerce.Models.Order", b =>

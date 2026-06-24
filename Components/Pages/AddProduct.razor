@@ -1,44 +1,98 @@
 ﻿@page "/AddProduct"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
 @using BlazorAppEcommerce.DTOs
 @using BlazorAppEcommerce.Services
+@using Microsoft.AspNetCore.Authorization
+
 @inject ProductService ProductService
-@inject NavigationManager NavigationManager
+@inject NavigationManager Navigation
 
-<h3>Add Product</h3>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Add Product</h3>
+    <button class="btn btn-secondary" @onclick="Cancel">← Back to Products</button>
+</div>
 
-<EditForm Model="@product" OnValidSubmit="HandleSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+<div class="card p-4" style="max-width: 600px;">
+    <EditForm Model="@product" OnValidSubmit="HandleSubmit" FormName="add-product-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
 
-    <div class="mb-3">
-        <label>Name</label>
-        <InputText class="form-control" @bind-Value="product.Name" />
-    </div>
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="product.Name" />
+        </div>
 
-    <div class="mb-3">
-        <label>Description</label>
-        <InputTextArea class="form-control" @bind-Value="product.Description" />
-    </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <InputTextArea class="form-control" rows="3" @bind-Value="product.Description" />
+        </div>
 
-    <div class="mb-3">
-        <label>Price</label>
-        <InputNumber class="form-control" @bind-Value="product.Price" />
-    </div>
+        <div class="mb-3">
+            <label class="form-label">Price</label>
+            <InputNumber TValue="decimal"
+                         class="form-control"
+                         @bind-Value="product.Price" />
+        </div>
 
-    <div class="mb-3">
-        <label>Stock</label>
-        <InputNumber class="form-control" @bind-Value="product.Stock" />
-    </div>
+        <div class="mb-3">
+            <label class="form-label">Stock</label>
+            <InputNumber TValue="int"
+                         class="form-control"
+                         @bind-Value="product.Stock" />
+        </div>
 
-    <button type="submit" class="btn btn-primary">Save</button>
-</EditForm>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                @if (isSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span>Save Product</span>
+                }
+            </button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+</div>
 
 @code {
     private ProductDOT product = new();
+    private bool isSaving = false;
+    private string? errorMessage;
 
-    private void HandleSubmit()
+    private async Task HandleSubmit()
     {
-        var newId = ProductService.AddProduct(product);
-        NavigationManager.NavigateTo("/products");
+        isSaving = true;
+        errorMessage = null;
+
+        try
+        {
+            await ProductService.AddProduct(product);
+            Navigation.NavigateTo("/products");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Failed to add product: " + ex.Message;
+            Console.WriteLine("ADD PRODUCT ERROR: " + ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/products");
     }
 }

@@ -1,0 +1,75 @@
+﻿@page "/signUp"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using BlazorAppEcommerce.Models
+@using BlazorAppEcommerce.Services
+@attribute [AllowAnonymous]
+
+@inject NavigationManager Navigation
+@inject UserService UserService
+@inject CountriesService CountriesService
+
+<EditForm Model="newUser" OnValidSubmit="RegisterUser">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="productName">Name</label>
+        <InputText id="productName" class="form-control" @bind-Value="newUser.name" />
+    </div>
+
+    <div class="mb-3">
+        <label for="userEmail">Email</label>
+        <InputText id="userEmail" class="form-control" @bind-Value="newUser.email" />
+    </div>
+
+    <div class="mb-3">
+        <label for="userPassword">Password</label>
+        <InputText id="userPassword" type="password" class="form-control" @bind-Value="newUser.password" />
+    </div>
+    <!-- Add the phone field here -->
+    <div class="mb-3">
+        <label for="userPhone">Phone</label>
+        <InputText id="userPhone"
+                   class="form-control"
+                   @bind-Value="newUser.phone" />
+    </div>
+
+    <div class="mb-3">
+        <label for="RoleSelect">Select Role</label>
+        <select id="RoleSelect" class="form-control" @bind="newUser.role" required>
+            <option value="">-- Select a role --</option>
+            <option value="Client">Client</option>
+            <option value="Seller">Seller</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="countrySelect">Select Country</label>
+        <select id="countrySelect" class="form-control" @bind="newUser.country" required>
+            <option value=""> Select a country </option>
+            @foreach (var country in countries)
+            {
+                <option value="@country">@country</option>
+            }
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Register</button>
+</EditForm>
+
+@code {
+    private List<string> countries = new();
+    private User newUser = new User();
+
+    protected override async Task OnInitializedAsync()
+    {
+        countries = await CountriesService.GetCountriesAsync();
+    }
+
+    private void RegisterUser()
+    {
+        UserService.AddUser(newUser);
+        Navigation.NavigateTo("/");
+    }
+}

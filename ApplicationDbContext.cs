@@ -1,6 +1,8 @@
-﻿using BlazorAppEcommerce.Models;
+﻿
+using BlazorAppEcommerce.Models;
 
 using Microsoft.EntityFrameworkCore;
+
 
 namespace BlazorAppEcommerce 
 {
@@ -14,5 +16,10 @@ namespace BlazorAppEcommerce
         public DbSet<Order> Orders { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<OrderProducts> orderProducts { get; set; }
+        public DbSet<Seller> Sellers { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<Client> Clients{ get; set; }
+        public DbSet<ProductImage> ProductImages { get; set; }
+        public DbSet<ProductReview> ProductReviews { get; set; }
     }
 }

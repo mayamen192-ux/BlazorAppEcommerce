@@ -28,6 +28,8 @@ namespace BlazorAppEcommerce.Models
         public string phone { get; set; }
         [Required]
         public string role { get; set; }
+        [Required]
+        public string country { get; set; }
         public bool IsActive { get; set; } = true;
 
         [Required]

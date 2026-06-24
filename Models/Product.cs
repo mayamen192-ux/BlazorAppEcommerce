@@ -31,9 +31,11 @@ namespace BlazorAppEcommerce.Models
 
         [Required]
         [Range(0, int.MaxValue)]
-        public int? Stock { get; set; }
+        public int Stock { get; set; }
+        public int? CategoryId { get; set; }
 
-
+        [ForeignKey("CategoryId")]
+        public virtual Category? Category { get; set; }
         public virtual ICollection<Review>? Reviews { get; set; } = new List<Review>();
         [NotMapped]
         public decimal OverallRating =>

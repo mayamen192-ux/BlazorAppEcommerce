@@ -1,0 +1,53 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+
+    <Authorized>
+        <MudNavMenu>
+
+            <MudNavLink Href="/" Match="NavLinkMatch.All">
+                Home
+            </MudNavLink>
+
+            <MudNavLink Href="/products">
+                Products
+            </MudNavLink>
+
+            <MudNavLink Href="/addproduct">
+                Add Product
+            </MudNavLink>
+
+            <MudNavLink Href="/logout" OnClick="Logout">
+                Logout
+            </MudNavLink>
+
+        </MudNavMenu>
+    </Authorized>
+
+    <NotAuthorized>
+        <MudNavMenu>
+
+            <MudNavLink Href="/">
+                Home
+            </MudNavLink>
+
+            <MudNavLink Href="/products">
+                Products
+            </MudNavLink>
+
+            <MudNavLink Href="/login">
+                Login
+            </MudNavLink>
+
+        </MudNavMenu>
+    </NotAuthorized>
+
+</AuthorizeView>
+
+@code {
+    private void Logout()
+    {
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

@@ -1,0 +1,95 @@
+﻿@page "/login"
+
+@layout Layout.LoginLayout
+@attribute [AllowAnonymous]
+@rendermode InteractiveServer
+
+@inject NavigationManager Navigation
+@inject UserService UserService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<h3>Login</h3>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert @AlertClass">
+        @Message
+    </div>
+}
+
+<div class="mb-2">
+    <label>Email</label>
+    <input class="form-control" @bind="Email" />
+</div>
+
+<div class="mb-2">
+    <label>Password</label>
+    <input type="password" class="form-control" @bind="Password" />
+</div>
+
+<button class="btn btn-primary mt-2" @onclick="LoginUser">
+    Login
+</button>
+
+@code {
+
+    private string Email = "";
+    private string Password = "";
+    private string Message = "";
+    private string AlertClass = "";
+
+    private async Task LoginUser()
+    {
+        try
+        {
+            // =====================
+            // VALIDATION
+            // =====================
+            if (string.IsNullOrWhiteSpace(Email) ||
+                string.IsNullOrWhiteSpace(Password))
+            {
+                Message = "Please enter email and password";
+                AlertClass = "alert-danger";
+                return;
+            }
+
+            // =====================
+            // CHECK USER
+            // =====================
+            var user = UserService.Login(Email, Password);
+
+            if (user == null)
+            {
+                Message = "Invalid email or password";
+                AlertClass = "alert-danger";
+                return;
+            }
+
+            // =====================
+            // AUTH STATE UPDATE
+            // =====================
+            if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+            {
+                await customAuth.MarkUserAsAuthenticated(user.email, user.role);
+            }
+
+            // =====================
+            // SUCCESS MESSAGE
+            // =====================
+            Message = "Login successful";
+            AlertClass = "alert-success";
+
+            await Task.Delay(300);
+
+            // =====================
+            // REDIRECT AFTER LOGIN
+            // =====================
+            Navigation.NavigateTo("/AddProduct", forceLoad: false);
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            AlertClass = "alert-danger";
+        }
+    }
+}

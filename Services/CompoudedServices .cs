@@ -22,7 +22,7 @@ namespace BlazorAppEcommerce.Services
             _context = context;
         }
 
-        public int PlaceOrder(PlaceOrderDTO dto)
+        public async Task<int> PlaceOrder(PlaceOrderDTO dto)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
@@ -37,26 +37,22 @@ namespace BlazorAppEcommerce.Services
                 OrderProducts = new List<OrderProducts>()
             };
 
-            using var transaction = _context.Database.BeginTransaction();
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
                 foreach (var item in dto.Items)
                 {
-                    var product = _productService.GetProductById(item.Pid);
+                    var product = await _productService.GetProductById(item.Pid);
 
                     if (product == null)
-                    {
                         throw new Exception($"Product with Id {item.Pid} not found.");
-                    }
 
-                    if (!product.Stock.HasValue || product.Stock.Value < item.qnt)
-                    {
-                        throw new Exception(
-                            $"Insufficient stock for product '{product.Name}'.");
-                    }
+                    // ✅ FIXED: no HasValue / Value
+                    if (product.Stock < item.qnt)
+                        throw new Exception($"Insufficient stock for product '{product.Name}'.");
 
-                    product.Stock = product.Stock.Value - item.qnt;
+                    product.Stock -= item.qnt;
 
                     order.OrderProducts.Add(new OrderProducts
                     {
@@ -66,17 +62,16 @@ namespace BlazorAppEcommerce.Services
                     });
                 }
 
-                int orderId = _orderService.AddOrder(order);
+                var orderId = await _orderService.AddOrder(order);
 
-                _context.SaveChanges();
-
-                transaction.Commit();
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return orderId;
             }
             catch
             {
-                transaction.Rollback();
+                await transaction.RollbackAsync();
                 throw;
             }
         }
