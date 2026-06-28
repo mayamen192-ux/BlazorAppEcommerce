@@ -1,0 +1,121 @@
+﻿@page "/my-orders"
+@using System.Security.Claims
+@using BlazorAppEcommerce.DTOs
+@using BlazorAppEcommerce.Services
+
+@inject OrderService OrderService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>My Orders - BlazorShop</PageTitle>
+
+<div class="orders-wrapper">
+
+    <h1 class="page-title">My Orders</h1>
+
+    @if (isLoading)
+    {
+        <div class="state-box">
+            <span class="state-icon">⏳</span>
+            <p>Loading your orders...</p>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="error-banner">
+            ⚠️ @errorMessage
+        </div>
+    }
+    else if (orders == null || orders.Count == 0)
+    {
+        <div class="state-box">
+            <span class="state-icon">📦</span>
+            <p>You haven't placed any orders yet.</p>
+
+            <a class="btn-primary" href="/products">
+                Start Shopping
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="orders-list">
+
+            @foreach (var order in orders)
+            {
+                <div class="order-card">
+
+                    <div class="order-header">
+
+                        <div>
+                            <div class="label">Order</div>
+                            <div class="value">
+                                #@order.order_Id
+                            </div>
+                        </div>
+
+                        <div class="order-date">
+                            @order.orderDate?.ToString("MMM dd, yyyy")
+                        </div>
+
+                        <div class="order-total">
+                            $@order.totalAmount.ToString("F2")
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<OrderOutput> orders = new();
+    private bool isLoading = true;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            // -------------------------
+            // CHECK LOGIN STATE
+            // -------------------------
+            if (user.Identity == null || !user.Identity.IsAuthenticated)
+            {
+                errorMessage = "You are not logged in. Please sign in first.";
+                return;
+            }
+
+            // -------------------------
+            // GET USER ID FROM CLAIM
+            // -------------------------
+            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                errorMessage = "Invalid user session. Please log in again.";
+                return;
+            }
+
+            // -------------------------
+            // LOAD ORDERS
+            // -------------------------
+            orders = await OrderService.GetOrdersByUser(userId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load orders: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

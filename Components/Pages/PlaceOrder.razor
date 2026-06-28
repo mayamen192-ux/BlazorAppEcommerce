@@ -1,0 +1,532 @@
+﻿@page "/order/{ProductId:int}"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using BlazorAppEcommerce.DTOs
+@using BlazorAppEcommerce.Services
+
+@rendermode InteractiveServer
+
+@inject OrderService OrderService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Place Order – BlazorShop</PageTitle>
+
+<AuthorizeView>
+
+    <NotAuthorized>
+        <div class="auth-notice">
+            <span class="auth-icon">🔒</span>
+            <p>You must be signed in to place an order.</p>
+            <a class="btn-primary" href="/login">Sign In</a>
+        </div>
+    </NotAuthorized>
+
+    <Authorized>
+
+        @if (isSubmitted && result != null)
+        {
+            <!-- ── Success ── -->
+            <div class="success-card">
+                <div class="success-icon">✅</div>
+                <h2>Order Placed!</h2>
+                <p>Your order <strong>#@result.order_Id</strong> has been received and is being processed.</p>
+
+                <div class="summary-grid">
+                    <span>Order ID</span>    <span>#@result.order_Id</span>
+                    <span>Product</span>     <span>@productName</span>
+                    <span>Quantity</span>    <span>@quantity</span>
+                    <span>Unit Price</span>  <span>$@unitPrice.ToString("F2")</span>
+                    <span>Order Total</span> <span class="total-value">$@result.totalAmount.ToString("F2")</span>
+                    <span>Date</span>        <span>@result.orderDate?.ToString("MMM dd, yyyy HH:mm")</span>
+                </div>
+
+                <div class="action-row">
+                    <a class="btn-secondary" href="/my-orders">My Orders</a>
+                    <a class="btn-primary" href="/products">Continue Shopping</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- ── Order form ── -->
+            <div class="order-wrapper">
+                <h1 class="page-title">Place Order</h1>
+
+                <!-- Product preview -->
+                <div class="product-preview">
+                    @if (!string.IsNullOrWhiteSpace(imageUrl))
+                    {
+                        <img src="@imageUrl" alt="@productName" class="product-thumb" />
+                    }
+                    else
+                    {
+                        <div class="product-thumb placeholder-thumb">🛍️</div>
+                    }
+                    <div class="product-meta">
+                        <h2 class="product-name">@productName</h2>
+                        <p class="product-price">$@unitPrice.ToString("F2") <span class="per-unit">per unit</span></p>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div class="order-form">
+
+                    <!-- Quantity stepper -->
+                    <div class="field">
+                        <label class="field-label">Quantity</label>
+                        <div class="qty-row">
+                            <button class="qty-btn" @onclick="DecrementQty" disabled="@(quantity <= 1)">−</button>
+                            <input class="qty-input" type="number" min="1" max="99"
+                                   @bind="quantity" @bind:event="oninput" />
+                            <button class="qty-btn" @onclick="IncrementQty" disabled="@(quantity >= 99)">+</button>
+                        </div>
+                        @if (showErrors && quantity < 1)
+                        {
+                            <span class="field-error">Quantity must be at least 1.</span>
+                        }
+                    </div>
+
+                    <!-- Live total -->
+                    <div class="order-total">
+                        <span>Order Total</span>
+                        <span class="total-amount">$@((unitPrice * quantity).ToString("F2"))</span>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="error-banner">⚠️ @errorMessage</div>
+                    }
+
+                    <div class="action-row">
+                        <button class="btn-secondary" @onclick="GoBack">Cancel</button>
+                        <button class="btn-primary" @onclick="SubmitOrder" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner">⏳</span><span>Placing…</span>
+                            }
+                            else
+                            {
+
+                                <span>Confirm Order</span>
+                            }
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        }
+
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    /* ── Route param ── */
+    [Parameter] public int ProductId { get; set; }
+
+    /* ── Query-string params (passed from your Products page) ──
+       Example link: href="/order/@p.ProductId?Name=...&Price=...&Image=..." */
+    [SupplyParameterFromQuery] public string? Name { get; set; }
+    [SupplyParameterFromQuery] public decimal Price { get; set; }
+    [SupplyParameterFromQuery] public string? Image { get; set; }
+
+    /* ── Resolved display values ── */
+    private string productName = string.Empty;
+    private decimal unitPrice;
+    private string imageUrl = string.Empty;
+
+    /* ── Form state ── */
+    private int quantity = 1;
+    private bool isLoading;
+    private bool showErrors;
+    private string errorMessage = string.Empty;
+
+    /* ── Result ── */
+    private bool isSubmitted;
+    private OrderOutput? result;
+
+    /* ─────────────────────────────── */
+
+    protected override void OnParametersSet()
+    {
+        productName = string.IsNullOrWhiteSpace(Name) ? $"Product #{ProductId}" : Name;
+        unitPrice = Price > 0 ? Price : 0m;
+        imageUrl = Image ?? string.Empty;
+    }
+
+    private void IncrementQty() { if (quantity < 99) quantity++; }
+    private void DecrementQty() { if (quantity > 1) quantity--; }
+    private void GoBack() => Navigation.NavigateTo("/products");
+
+    private async Task SubmitOrder()
+    {
+        showErrors = true;
+        errorMessage = string.Empty;
+
+        if (quantity < 1) return;
+
+        isLoading = true;
+        try
+        {
+            /* ── Resolve logged-in user's numeric ID ──
+               Adjust the claim type to match what your auth stores.
+               Common options: ClaimTypes.NameIdentifier | "userId" | "sub" */
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)
+                           ?? authState.User.FindFirst("userId")
+                           ?? authState.User.FindFirst("sub");
+
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                errorMessage = "Could not verify your identity. Please sign in again.";
+                return;
+            }
+
+            /* ── Build PlaceOrderDTO ── */
+            var dto = new PlaceOrderDTO
+            {
+                UserId = userId,
+                Items = new List<Item>
+                {
+                    new Item
+                    {
+                        ProductId   = ProductId,
+                        ProductName = productName,
+                        ImageUrl    = imageUrl,
+                        Price       = unitPrice,
+                        Quantity    = quantity
+                    }
+                }
+            };
+
+            result = await OrderService.AddOrder(dto);
+
+            if (result == null)
+            {
+                errorMessage = "Something went wrong while placing your order. Please try again.";
+                return;
+            }
+
+            isSubmitted = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+
+<style>
+    /* ── Page wrapper ── */
+    .order-wrapper {
+        max-width: 540px;
+        margin: 0 auto;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 24px;
+    }
+
+    /* ── Product preview card ── */
+    .product-preview {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .product-thumb {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 8px;
+        flex-shrink: 0;
+        background: #f3f4f6;
+    }
+
+    .placeholder-thumb {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        background: #f3f4f6;
+    }
+
+    .product-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 4px;
+    }
+
+    .product-price {
+        font-size: 15px;
+        font-weight: 600;
+        color: #4f46e5;
+        margin: 0;
+    }
+
+    .per-unit {
+        font-size: 12px;
+        font-weight: 400;
+        color: #9ca3af;
+    }
+
+    /* ── Order form card ── */
+    .order-form {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* ── Field ── */
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .field-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .field-error {
+        font-size: 12px;
+        color: #ef4444;
+    }
+
+    /* ── Quantity stepper ── */
+    .qty-row {
+        display: flex;
+        align-items: center;
+        width: fit-content;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .qty-btn {
+        width: 40px;
+        height: 40px;
+        background: #f9fafb;
+        border: none;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+        color: #374151;
+        transition: background 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+        .qty-btn:hover:not(:disabled) {
+            background: #f3f4f6;
+        }
+
+        .qty-btn:disabled {
+            color: #d1d5db;
+            cursor: not-allowed;
+        }
+
+    .qty-input {
+        width: 58px;
+        height: 40px;
+        text-align: center;
+        border: none;
+        border-left: 1px solid #d1d5db;
+        border-right: 1px solid #d1d5db;
+        font-size: 15px;
+        font-weight: 600;
+        color: #111827;
+        background: #ffffff;
+        outline: none;
+        -moz-appearance: textfield;
+    }
+
+        .qty-input::-webkit-inner-spin-button,
+        .qty-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+        }
+
+    /* ── Order total banner ── */
+    .order-total {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .total-amount {
+        font-size: 22px;
+        font-weight: 700;
+        color: #16a34a;
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 11px 14px;
+        font-size: 13.5px;
+        color: #b91c1c;
+    }
+
+    /* ── Buttons ── */
+    .action-row {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    .btn-primary {
+        padding: 10px 24px;
+        background: #4f46e5;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #4338ca;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .btn-secondary {
+        padding: 10px 24px;
+        background: #ffffff;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+        display: inline-flex;
+        align-items: center;
+    }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+    .spinner {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* ── Success card ── */
+    .success-card {
+        max-width: 480px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 40px 32px;
+        text-align: center;
+    }
+
+    .success-icon {
+        font-size: 56px;
+        margin-bottom: 12px;
+    }
+
+    .success-card h2 {
+        font-size: 22px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 8px;
+    }
+
+    .success-card > p {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0 0 24px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 16px;
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 28px;
+        text-align: left;
+        font-size: 13.5px;
+        color: #374151;
+    }
+
+        .summary-grid span:nth-child(odd) {
+            color: #9ca3af;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+    .total-value {
+        font-weight: 700;
+        color: #16a34a !important;
+        font-size: 15px !important;
+    }
+
+    /* ── Auth notice ── */
+    .auth-notice {
+        max-width: 360px;
+        margin: 80px auto;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .auth-icon {
+        font-size: 48px;
+    }
+</style>

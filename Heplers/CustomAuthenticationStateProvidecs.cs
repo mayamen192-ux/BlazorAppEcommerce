@@ -1,56 +1,57 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Components.Authorization;
+﻿using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
 
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
-    private ClaimsPrincipal currentUser = new(new ClaimsIdentity());
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public CustomAuthenticationStateProvider(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
 
     public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        return Task.FromResult(new AuthenticationState(currentUser));
+        var user = _httpContextAccessor.HttpContext?.User
+                   ?? new ClaimsPrincipal(new ClaimsIdentity());
+
+        return Task.FromResult(new AuthenticationState(user));
     }
 
-    public void SetUser(string name, string role)
+    // ✅ PLACE THIS METHOD HERE
+    public Task MarkUserAsAuthenticated(string name, string role, int userId)
     {
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, name),
-            new Claim(ClaimTypes.Role, role)
+            new Claim(ClaimTypes.Role, role),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString())
         };
 
         var identity = new ClaimsIdentity(claims, "CustomAuth");
-        currentUser = new ClaimsPrincipal(identity);
+        var user = new ClaimsPrincipal(identity);
+
+        _httpContextAccessor.HttpContext!.User = user;
 
         NotifyAuthenticationStateChanged(
-            Task.FromResult(new AuthenticationState(currentUser)));
+            Task.FromResult(new AuthenticationState(user)));
+
+        return Task.CompletedTask;
     }
 
-    public async Task MarkUserAsAuthenticated(string email, string role)
-    {
-        var identity = new ClaimsIdentity(new[]
-        {
-            new Claim(ClaimTypes.Name, email),
-            new Claim(ClaimTypes.Role, role)
-        }, "CustomAuth");
-
-        currentUser = new ClaimsPrincipal(identity); // ✅ FIXED: was missing before
-
-        NotifyAuthenticationStateChanged(
-            Task.FromResult(new AuthenticationState(currentUser)));
-
-        await Task.CompletedTask;
-    }
-
+    // OPTIONAL (for logout button)
     public void Logout()
     {
-        currentUser = new ClaimsPrincipal(new ClaimsIdentity());
+        var user = new ClaimsPrincipal(new ClaimsIdentity());
+
+        _httpContextAccessor.HttpContext!.User = user;
 
         NotifyAuthenticationStateChanged(
-            Task.FromResult(new AuthenticationState(currentUser)));
+            Task.FromResult(new AuthenticationState(user)));
     }
 
-    public void MarkUserAsLoggedOut()
+    public void NotifyAuthStateChanged()
     {
-        Logout();
+        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 }

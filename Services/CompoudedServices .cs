@@ -5,24 +5,21 @@ namespace BlazorAppEcommerce.Services
 {
     public class CompoudedServices
     {
-        private readonly UserService _userService;
         private readonly ProductService _productService;
         private readonly OrderService _orderService;
         private readonly ApplicationDbContext _context;
 
         public CompoudedServices(
-            UserService userService,
             ProductService productService,
             OrderService orderService,
             ApplicationDbContext context)
         {
-            _userService = userService;
             _productService = productService;
             _orderService = orderService;
             _context = context;
         }
 
-        public async Task<int> PlaceOrder(PlaceOrderDTO dto)
+        public async Task<OrderOutput?> PlaceOrder(PlaceOrderDTO dto)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
@@ -30,44 +27,33 @@ namespace BlazorAppEcommerce.Services
             if (dto.Items == null || !dto.Items.Any())
                 throw new ArgumentException("Order must contain at least one item.");
 
-            var order = new Order
-            {
-                UserId = dto.UserId,
-                orderDate = DateTime.Now,
-                OrderProducts = new List<OrderProducts>()
-            };
-
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
+                // ✅ Validate stock and decrement for each item
                 foreach (var item in dto.Items)
                 {
-                    var product = await _productService.GetProductById(item.Pid);
+                    var product = await _productService.GetProductById(item.ProductId);
 
                     if (product == null)
-                        throw new Exception($"Product with Id {item.Pid} not found.");
+                        throw new Exception($"Product with Id {item.ProductId} not found.");
 
-                    // ✅ FIXED: no HasValue / Value
-                    if (product.Stock < item.qnt)
+                    if (product.Stock < item.Quantity)
                         throw new Exception($"Insufficient stock for product '{product.Name}'.");
 
-                    product.Stock -= item.qnt;
-
-                    order.OrderProducts.Add(new OrderProducts
-                    {
-                        ProductId = product.Id,
-                        Quantity = item.qnt,
-                        Price = product.Price
-                    });
+                    product.Stock -= item.Quantity;
                 }
 
-                var orderId = await _orderService.AddOrder(order);
+                // ✅ Delegate order creation to OrderService (it accepts PlaceOrderDTO)
+                var result = await _orderService.AddOrder(dto);
 
-                await _context.SaveChangesAsync();
+                if (result == null)
+                    throw new Exception("Order could not be placed.");
+
                 await transaction.CommitAsync();
 
-                return orderId;
+                return result;
             }
             catch
             {

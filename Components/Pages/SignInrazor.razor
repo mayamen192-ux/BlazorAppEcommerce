@@ -113,10 +113,14 @@
             // =====================
             // AUTH STATE UPDATE
             // =====================
-            if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
-            {
-                await customAuth.MarkUserAsAuthenticated(user.email, user.role);
-            }
+           if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+{
+    await customAuth.MarkUserAsAuthenticated(
+        user.email,
+        user.role,
+        user.Id
+    );
+}
 
             // =====================
             // SUCCESS MESSAGE

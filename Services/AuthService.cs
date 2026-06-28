@@ -1,8 +1,7 @@
 ﻿using BlazorAppEcommerce.Models;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
 namespace BlazorAppEcommerce.Services
@@ -24,15 +23,13 @@ namespace BlazorAppEcommerce.Services
         }
 
         // =========================
-        // LOGIN (COOKIE AUTH)
+        // LOGIN (COOKIE AUTH - SINGLE SOURCE OF TRUTH)
         // =========================
         public async Task<bool> Login(User user)
         {
             try
             {
-                _logger.LogInformation(
-                    "Login attempt | UserID: {UserId} | Username: {Username} | Role: {Role}",
-                    user.Id, user.name, user.role);
+                _logger.LogInformation("Login attempt | UserID: {UserId}", user.Id);
 
                 var claims = new List<Claim>
                 {
@@ -41,32 +38,29 @@ namespace BlazorAppEcommerce.Services
                     new Claim(ClaimTypes.Role, user.role)
                 };
 
-                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var identity = new ClaimsIdentity(
+                    claims,
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+
                 var principal = new ClaimsPrincipal(identity);
 
+                // 1. Sign in using cookie authentication
                 await _httpContextAccessor.HttpContext!
                     .SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
-                if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
+                // 2. Notify Blazor UI auth state changed
+                if (_authStateProvider is CustomAuthenticationStateProvider provider)
                 {
-                    customProvider.MarkUserAsAuthenticated(user.name, user.role);
-                    _logger.LogInformation(
-                        "Authentication state updated for UserID: {UserId} | Username: {Username}",
-                        user.Id, user.name);
+                    provider.NotifyAuthStateChanged();
                 }
 
-                _logger.LogInformation(
-                    "User logged in successfully | UserID: {UserId} | Username: {Username} | Role: {Role}",
-                    user.Id, user.name, user.role);
+                _logger.LogInformation("Login successful | UserID: {UserId}", user.Id);
 
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,
-                    "Error occurred during login for UserID: {UserId} | Username: {Username}",
-                    user.Id, user.name);
-
+                _logger.LogError(ex, "Login failed | UserID: {UserId}", user.Id);
                 return false;
             }
         }
@@ -80,28 +74,21 @@ namespace BlazorAppEcommerce.Services
             {
                 var httpContext = _httpContextAccessor.HttpContext;
 
-                var username = httpContext?.User?.Identity?.Name ?? "Unknown";
-
-                _logger.LogWarning(
-                    "Logout initiated for Username: {Username}", username);
-
-                await httpContext!
-                    .SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-                if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
+                if (httpContext != null)
                 {
-                    customProvider.MarkUserAsLoggedOut();
-                    _logger.LogInformation(
-                        "Authentication state cleared for Username: {Username}", username);
+                    await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 }
 
-                _logger.LogInformation(
-                    "User logged out successfully | Username: {Username}", username);
+                if (_authStateProvider is CustomAuthenticationStateProvider provider)
+                {
+                    provider.NotifyAuthStateChanged();
+                }
+
+                _logger.LogInformation("User logged out successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,
-                    "Error occurred during logout.");
+                _logger.LogError(ex, "Logout failed");
             }
         }
     }

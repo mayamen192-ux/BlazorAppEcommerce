@@ -1,8 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 
-@rendermode InteractiveServer
-
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
@@ -21,7 +19,6 @@
 <div class="nav-scrollable">
     <nav class="nav-menu">
 
-        <!-- Section: Main -->
         <p class="nav-section-label">Main</p>
 
         <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
@@ -34,9 +31,9 @@
             <span>Products</span>
         </NavLink>
 
-        <!-- Section: Account (auth-dependent) -->
         <AuthorizeView>
             <Authorized>
+
                 <p class="nav-section-label">Manage</p>
 
                 <NavLink class="nav-link nav-link-accent" href="/AddProduct">
@@ -59,6 +56,7 @@
             </Authorized>
 
             <NotAuthorized>
+
                 <p class="nav-section-label">Account</p>
 
                 <NavLink class="nav-link" href="/login">
@@ -70,6 +68,7 @@
                     <span class="nav-icon">📝</span>
                     <span>Sign Up</span>
                 </NavLink>
+
             </NotAuthorized>
         </AuthorizeView>
 
@@ -84,7 +83,7 @@
             customAuth.Logout();
         }
 
-        Navigation.NavigateTo("/login", forceLoad: false);
+        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }
 
@@ -93,13 +92,14 @@
     .nav-brand {
         padding: 20px 16px 16px;
         border-bottom: 1px solid rgba(255,255,255,0.08);
+        flex-shrink: 0;
     }
 
     .brand-link {
         display: flex;
         align-items: center;
         gap: 10px;
-        text-decoration: none;
+        text-decoration: none !important;
     }
 
     .brand-icon {
@@ -110,7 +110,7 @@
     .brand-name {
         font-size: 15px;
         font-weight: 600;
-        color: #ffffff;
+        color: #ffffff !important;
         letter-spacing: 0.2px;
     }
 
@@ -165,11 +165,13 @@
         text-decoration: none !important;
         transition: background 0.15s, color 0.15s;
         width: 100%;
+        box-sizing: border-box;
     }
 
         .nav-link:hover {
             background: rgba(255,255,255,0.07);
             color: #ffffff !important;
+            text-decoration: none !important;
         }
 
         .nav-link.active {
@@ -205,7 +207,7 @@
             color: #fca5a5 !important;
         }
 
-    /* ── Logout button reset (so it looks like a nav link) ── */
+    /* ── Logout button reset ── */
     button.nav-link {
         background: none;
         border: none;
