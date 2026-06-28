@@ -3,6 +3,9 @@
 
 @rendermode InteractiveServer
 
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
 <!-- Brand header -->
 <div class="nav-brand">
     <a href="/" class="brand-link">
@@ -48,10 +51,11 @@
                     <span class="nav-username">@context.User.Identity?.Name</span>
                 </div>
 
-                <NavLink class="nav-link nav-link-danger" href="/logout">
+                <button class="nav-link nav-link-danger" @onclick="LogoutUser">
                     <span class="nav-icon">🚪</span>
                     <span>Logout</span>
-                </NavLink>
+                </button>
+
             </Authorized>
 
             <NotAuthorized>
@@ -71,6 +75,18 @@
 
     </nav>
 </div>
+
+@code {
+    private void LogoutUser()
+    {
+        if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+        {
+            customAuth.Logout();
+        }
+
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+}
 
 <style>
     /* ── Brand ── */
@@ -188,6 +204,15 @@
             background: rgba(252,165,165,0.10) !important;
             color: #fca5a5 !important;
         }
+
+    /* ── Logout button reset (so it looks like a nav link) ── */
+    button.nav-link {
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+    }
 
     /* ── Logged-in user display ── */
     .nav-user {

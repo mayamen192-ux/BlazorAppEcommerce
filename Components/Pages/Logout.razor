@@ -1,0 +1,19 @@
+﻿@page "/logout"
+@rendermode InteractiveServer
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+        {
+            customAuth.Logout();
+        }
+
+        Navigation.NavigateTo("/login", forceLoad: false);
+
+        return Task.CompletedTask;
+    }
+}
