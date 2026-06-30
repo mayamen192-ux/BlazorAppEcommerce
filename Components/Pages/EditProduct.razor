@@ -1,126 +1,174 @@
-﻿@page "/EditProduct/{id:int}"
+﻿@page "/EditProduct/{Id:int}"
 @rendermode InteractiveServer
+@attribute [Authorize]
 
 @using BlazorAppEcommerce.DTOs
 @using BlazorAppEcommerce.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 
 @inject ProductService ProductService
 @inject NavigationManager Navigation
 
-<div class="container mt-4">
+<div class="add-product-page">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0 text-white">Edit Product</h3>
+        <button class="btn btn-secondary" @onclick="Cancel">← Back to Products</button>
+    </div>
 
-    <h3>Edit Product</h3>
-
-    @if (loading)
+    @if (product == null)
     {
-        <p>Loading product...</p>
-    }
-    else if (!found)
-    {
-        <div class="alert alert-danger">
-            Product not found.
-        </div>
+        <div class="spinner-border"></div>
     }
     else
     {
-        <EditForm Model="editProduct"
-                  OnValidSubmit="SaveProduct">
+        <div class="card p-4" style="max-width: 600px;">
+            <EditForm Model="@product" OnValidSubmit="HandleSubmit" FormName="edit-product-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
 
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <InputText class="form-control" @bind-Value="product.Name" />
+                </div>
 
-            <div class="mb-3">
-                <label>Name</label>
-                <InputText class="form-control"
-                           @bind-Value="editProduct.Name" />
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <InputTextArea class="form-control" rows="3" @bind-Value="product.Description" />
+                </div>
 
-            <div class="mb-3">
-                <label>Price</label>
-                <InputNumber class="form-control"
-                             @bind-Value="editProduct.Price" />
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Price</label>
+                    <InputNumber TValue="decimal" class="form-control" @bind-Value="product.Price" />
+                </div>
 
-            <div class="mb-3">
-                <label>Stock</label>
-                <InputNumber class="form-control"
-                             @bind-Value="editProduct.Stock" />
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Stock</label>
+                    <InputNumber TValue="int" class="form-control" @bind-Value="product.Stock" />
+                </div>
 
-            <div class="mb-3">
-                <label>Description</label>
-                <InputTextArea class="form-control"
-                               @bind-Value="editProduct.Description" />
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Product Image</label>
+                    <InputFile OnChange="HandleImageSelected" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+                    @if (uploadError != null)
+                    {
+                        <div class="text-danger small mt-1">@uploadError</div>
+                    }
+                    <div class="mt-2">
+                        <img src="@(previewUrl ?? product.ImageUrl ?? "/images/no-image.png")"
+                             alt="Current image" style="max-width:150px; border-radius:8px;" />
+                    </div>
+                </div>
 
-            <button type="submit" class="btn btn-primary me-2">
-                Save Changes
-            </button>
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
 
-            <button type="button"
-                    class="btn btn-secondary"
-                    @onclick="Cancel">
-                Cancel
-            </button>
-
-        </EditForm>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>Saving...</span>
+                        }
+                        else
+                        {
+                            <span>Save Changes</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
     }
-
 </div>
 
 @code {
+    [Parameter] public int Id { get; set; }
 
-    [Parameter]
-    public int id { get; set; }
+    private ProductDOT? product;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? uploadError;
+    private string? previewUrl;
+    private IBrowserFile? selectedFile;
 
-    private ProductDOT editProduct = new();
+    private const long MaxFileSize = 5 * 1024 * 1024;
 
-    private bool loading = true;
-    private bool found = true;
-
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        loading = true;
+        product = await ProductService.GetProductById(Id);
+        if (product == null)
+        {
+            errorMessage = "Product not found.";
+        }
+    }
+
+    private async Task HandleImageSelected(InputFileChangeEventArgs e)
+    {
+        uploadError = null;
+        selectedFile = e.File;
+
+        if (selectedFile.Size > MaxFileSize)
+        {
+            uploadError = "Image must be smaller than 5MB.";
+            selectedFile = null;
+            previewUrl = null;
+            return;
+        }
 
         try
         {
-            var result = await ProductService.GetProductById(id);
-
-            if (result == null)
-            {
-                found = false;
-            }
-            else
-            {
-                found = true;
-                editProduct = result;
-            }
+            using var stream = selectedFile.OpenReadStream(MaxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            previewUrl = $"data:{selectedFile.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.ToString());
-            found = false;
+            uploadError = "Could not read the selected file: " + ex.Message;
+            selectedFile = null;
+            previewUrl = null;
         }
-
-        loading = false;
     }
 
-    private async Task SaveProduct()
+    private async Task HandleSubmit()
     {
+        if (product == null) return;
+
+        isSaving = true;
+        errorMessage = null;
+
         try
         {
-            await ProductService.UpdateProduct(editProduct);
+            if (selectedFile != null)
+            {
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(selectedFile.Name)}";
+                var uploadsDir = Path.Combine("wwwroot", "uploads");
+                Directory.CreateDirectory(uploadsDir);
 
-            Navigation.NavigateTo("/products", true);
+                var savePath = Path.Combine(uploadsDir, fileName);
+
+                await using var fs = new FileStream(savePath, FileMode.Create);
+                await using var inputStream = selectedFile.OpenReadStream(MaxFileSize);
+                await inputStream.CopyToAsync(fs);
+
+                product.ImageUrl = $"/uploads/{fileName}";
+            }
+
+            await ProductService.UpdateProduct(product);
+            Navigation.NavigateTo("/products");
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.ToString());
+            errorMessage = "Failed to update product: " + ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
         }
     }
 
-    private void Cancel()
-    {
-        Navigation.NavigateTo("/products");
-    }
+    private void Cancel() => Navigation.NavigateTo("/products");
 }

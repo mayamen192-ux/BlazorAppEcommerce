@@ -3,50 +3,115 @@
 
 <PageTitle>Blazor Ecommerce</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+<div style="background-image: url('images/products/background.webp');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+    padding: 24px 0;">
 
-    <MudPaper Elevation="3" Class="pa-6 text-center">
+    <MudContainer MaxWidth="MaxWidth.Large">
 
-        <MudText Typo="Typo.h3" Color="Color.Primary">
-            Welcome to Blazor Ecommerce
+        <MudPaper Elevation="3" Class="pa-6 text-center" Style="background-color: rgba(255,255,255,0.92);">
+
+            <MudText Typo="Typo.h3"
+                     Style="font-weight: 800;
+                background-image: url('images/products/ecommerace.webp');
+                background-size: cover;
+                background-position: center;
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                color: transparent;
+                letter-spacing: 0.5px;
+                line-height: 1.2;">
+                Welcome to Blazor Ecommerce
+            </MudText>
+
+            <MudText Typo="Typo.subtitle1" Class="mt-2">
+                Discover the best products at unbeatable prices
+            </MudText>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Class="mt-4"
+                       Href="/products">
+                Start Shopping
+            </MudButton>
+
+        </MudPaper>
+
+        <MudGrid Class="mt-6">
+
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="pa-4 text-center" Elevation="2" Style="background-color: rgba(255,255,255,0.92);">
+                    <MudImage Src="images/products/Fast.webp" Width="120" Height="120" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Fast Delivery</MudText>
+                    <MudText>Get products delivered quickly to your door.</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="pa-4 text-center" Elevation="2" Style="background-color: rgba(255,255,255,0.92);">
+                    <MudImage Src="images/products/price.webp" Width="120" Height="120" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Best Prices</MudText>
+                    <MudText>Affordable prices on all categories.</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="pa-4 text-center" Elevation="2" Style="background-color: rgba(255,255,255,0.92);">
+                    <MudImage Src="images/products/100.webp" Width="120" Height="120" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Secure Payments</MudText>
+                    <MudText>100% safe and encrypted checkout.</MudText>
+                </MudPaper>
+            </MudItem>
+
+        </MudGrid>
+
+        <MudText Typo="Typo.h4" Class="mt-8 mb-4" Style="color: white;">
+            Featured Products
         </MudText>
 
-        <MudText Typo="Typo.subtitle1" Class="mt-2">
-            Discover the best products at unbeatable prices
-        </MudText>
+        <MudGrid>
+            @foreach (var product in FeaturedProducts)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard Elevation="2">
+                        <MudCardMedia Image="@product.ImageUrl" Height="200" />
+                        <MudCardContent>
+                            <MudText Typo="Typo.h6">@product.Name</MudText>
+                            <MudText Typo="Typo.body2">@product.Price.ToString("C")</MudText>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Primary"
+                                       Href="@($"/products/{product.Id}")">
+                                View Details
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
 
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   Class="mt-4"
-                   Href="/products">
-            Start Shopping
-        </MudButton>
+    </MudContainer>
+</div>
 
-    </MudPaper>
+@code {
+    private List<ProductDto> FeaturedProducts = new()
+    {
+        new ProductDto { Id = 1, Name = "Wireless Headphones", Price = 49.99m, ImageUrl = "images/products/headPhone.jpg" },
+        new ProductDto { Id = 2, Name = "Smart Watch", Price = 89.99m, ImageUrl = "images/products/SmartWatch.jpg" },
+        new ProductDto { Id = 3, Name = "Bluetooth Speaker", Price = 29.99m, ImageUrl = "images/products/BluetoothSpeaker.jpg" },
+    };
 
-    <MudGrid Class="mt-6">
-
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudText Typo="Typo.h6">Fast Delivery</MudText>
-                <MudText>Get products delivered quickly to your door.</MudText>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudText Typo="Typo.h6">Best Prices</MudText>
-                <MudText>Affordable prices on all categories.</MudText>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudText Typo="Typo.h6">Secure Payments</MudText>
-                <MudText>100% safe and encrypted checkout.</MudText>
-            </MudPaper>
-        </MudItem>
-
-    </MudGrid>
-
-</MudContainer>
+    public class ProductDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public decimal Price { get; set; }
+        public string ImageUrl { get; set; } = "";
+    }
+}

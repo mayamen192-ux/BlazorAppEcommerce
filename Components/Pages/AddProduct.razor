@@ -5,70 +5,115 @@
 @using BlazorAppEcommerce.DTOs
 @using BlazorAppEcommerce.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 
 @inject ProductService ProductService
 @inject NavigationManager Navigation
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Add Product</h3>
-    <button class="btn btn-secondary" @onclick="Cancel">← Back to Products</button>
-</div>
+<div class="add-product-page">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0 text-white">Add Product</h3>
+        <button class="btn btn-secondary" @onclick="Cancel">← Back to Products</button>
+    </div>
 
-<div class="card p-4" style="max-width: 600px;">
-    <EditForm Model="@product" OnValidSubmit="HandleSubmit" FormName="add-product-form">
-        <DataAnnotationsValidator />
-        <ValidationSummary class="text-danger" />
+    <div class="card p-4" style="max-width: 600px;">
+        <EditForm Model="@product" OnValidSubmit="HandleSubmit" FormName="add-product-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
 
-        <div class="mb-3">
-            <label class="form-label">Name</label>
-            <InputText class="form-control" @bind-Value="product.Name" />
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Name</label>
+                <InputText class="form-control" @bind-Value="product.Name" />
+            </div>
 
-        <div class="mb-3">
-            <label class="form-label">Description</label>
-            <InputTextArea class="form-control" rows="3" @bind-Value="product.Description" />
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <InputTextArea class="form-control" rows="3" @bind-Value="product.Description" />
+            </div>
 
-        <div class="mb-3">
-            <label class="form-label">Price</label>
-            <InputNumber TValue="decimal"
-                         class="form-control"
-                         @bind-Value="product.Price" />
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Price</label>
+                <InputNumber TValue="decimal" class="form-control" @bind-Value="product.Price" />
+            </div>
 
-        <div class="mb-3">
-            <label class="form-label">Stock</label>
-            <InputNumber TValue="int"
-                         class="form-control"
-                         @bind-Value="product.Stock" />
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Stock</label>
+                <InputNumber TValue="int" class="form-control" @bind-Value="product.Stock" />
+            </div>
 
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">@errorMessage</div>
-        }
-
-        <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary" disabled="@isSaving">
-                @if (isSaving)
+            <div class="mb-3">
+                <label class="form-label">Product Image</label>
+                <InputFile OnChange="HandleImageSelected" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+                @if (uploadError != null)
                 {
-                    <span class="spinner-border spinner-border-sm me-1"></span>
-                    <span>Saving...</span>
+                    <div class="text-danger small mt-1">@uploadError</div>
                 }
-                else
+                @if (!string.IsNullOrEmpty(previewUrl))
                 {
-                    <span>Save Product</span>
+                    <img src="@previewUrl" alt="Preview" style="max-width:150px; margin-top:10px; border-radius:8px;" />
                 }
-            </button>
-            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-        </div>
-    </EditForm>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Product</span>
+                    }
+                </button>
+                <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+            </div>
+        </EditForm>
+    </div>
 </div>
 
 @code {
     private ProductDOT product = new();
     private bool isSaving = false;
     private string? errorMessage;
+    private string? uploadError;
+    private string? previewUrl;
+    private IBrowserFile? selectedFile;
+
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5MB
+
+    private async Task HandleImageSelected(InputFileChangeEventArgs e)
+    {
+        uploadError = null;
+        selectedFile = e.File;
+
+        if (selectedFile.Size > MaxFileSize)
+        {
+            uploadError = "Image must be smaller than 5MB.";
+            selectedFile = null;
+            previewUrl = null;
+            return;
+        }
+
+        try
+        {
+            using var stream = selectedFile.OpenReadStream(MaxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            previewUrl = $"data:{selectedFile.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
+        }
+        catch (Exception ex)
+        {
+            uploadError = "Could not read the selected file: " + ex.Message;
+            selectedFile = null;
+            previewUrl = null;
+        }
+    }
 
     private async Task HandleSubmit()
     {
@@ -77,13 +122,27 @@
 
         try
         {
+            if (selectedFile != null)
+            {
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(selectedFile.Name)}";
+                var uploadsDir = Path.Combine("wwwroot", "uploads");
+                Directory.CreateDirectory(uploadsDir);
+
+                var savePath = Path.Combine(uploadsDir, fileName);
+
+                await using var fs = new FileStream(savePath, FileMode.Create);
+                await using var inputStream = selectedFile.OpenReadStream(MaxFileSize);
+                await inputStream.CopyToAsync(fs);
+
+                product.ImageUrl = $"/uploads/{fileName}";
+            }
+
             await ProductService.AddProduct(product);
             Navigation.NavigateTo("/products");
         }
         catch (Exception ex)
         {
             errorMessage = "Failed to add product: " + ex.Message;
-            Console.WriteLine("ADD PRODUCT ERROR: " + ex.Message);
         }
         finally
         {
@@ -91,8 +150,5 @@
         }
     }
 
-    private void Cancel()
-    {
-        Navigation.NavigateTo("/products");
-    }
+    private void Cancel() => Navigation.NavigateTo("/products");
 }

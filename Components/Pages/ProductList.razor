@@ -10,48 +10,28 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Product List</h3>
-
-    <button class="btn btn-success"
-            @onclick="AddProduct">
-        + Add Product
-    </button>
+    <button class="btn btn-success" @onclick="AddProduct">+ Add Product</button>
 </div>
 
 <div class="row mb-3">
     <div class="col-md-4">
-        <input class="form-control"
-               placeholder="Search by name"
-               @bind="searchName"
-               @bind:event="oninput" />
+        <input class="form-control" placeholder="Search by name"
+               @bind="searchName" @bind:event="oninput" />
     </div>
-
     <div class="col-md-3">
-        <input type="number"
-               class="form-control"
-               placeholder="Min Price"
-               @bind="minPrice" />
+        <input type="number" class="form-control" placeholder="Min Price" @bind="minPrice" />
     </div>
-
     <div class="col-md-3">
-        <input type="number"
-               class="form-control"
-               placeholder="Max Price"
-               @bind="maxPrice" />
+        <input type="number" class="form-control" placeholder="Max Price" @bind="maxPrice" />
     </div>
-
     <div class="col-md-2">
-        <button class="btn btn-primary w-100"
-                @onclick="Search">
-            Search
-        </button>
+        <button class="btn btn-primary w-100" @onclick="Search">Search</button>
     </div>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(errorMessage))
 {
-    <div class="alert alert-danger">
-        @errorMessage
-    </div>
+    <div class="alert alert-danger">@errorMessage</div>
 }
 
 @if (products == null)
@@ -63,172 +43,107 @@
 }
 else if (!products.Any())
 {
-    <div class="alert alert-info">
-        No products found.
-    </div>
+    <div class="alert alert-info">No products found.</div>
 }
 else
 {
-    <table class="table table-striped table-hover">
-        <thead class="table-dark">
-            <tr>
-                <th>Id</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Description</th>
-                <th>Stock</th>
-                <th width="180">Actions</th>
-            </tr>
-        </thead>
+    <div class="row">
+        @foreach (var product in products)
+        {
+            <div class="col-md-4 col-sm-6 mb-4">
+                <div class="card h-100 shadow-sm">
 
-        <tbody>
-            @foreach (var product in products)
-            {
-                <tr>
-                    <td>@product.Id</td>
-                    <td>@product.Name</td>
-                    <td>@product.Price.ToString("0.00")</td>
-                    <td>@product.Description</td>
-                    <td>@product.Stock</td>
+                    <img src="@(string.IsNullOrWhiteSpace(product.ImageUrl) ? "/images/no-image.png" : product.ImageUrl)"
+                         class="card-img-top"
+                         style="height: 180px; object-fit: cover;"
+                         alt="@product.Name" />
 
-                    <td>
-                        <button class="btn btn-warning btn-sm me-2"
-                                @onclick="() => EditProduct(product.Id)">
-                            Edit
-                        </button>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">@product.Name</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">@product.Price.ToString("C")</h6>
+                        <p class="card-text flex-grow-1">@product.Description</p>
 
-                        <button class="btn btn-danger btn-sm"
-                                disabled="@(deletingId == product.Id)"
-                                @onclick="() => DeleteProduct(product.Id)">
+                        <p class="mb-3">
+                            <span class="badge @(product.Stock > 0 ? "bg-success" : "bg-danger")">
+                                @(product.Stock > 0 ? $"In Stock: {product.Stock}" : "Out of Stock")
+                            </span>
+                        </p>
 
-                            @if (deletingId == product.Id)
-                            {
-                                <span class="spinner-border spinner-border-sm"></span>
-                            }
-                            else
-                            {
-                                <span>Delete</span>
-                            }
-                        </button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                        <div class="d-flex justify-content-between mt-auto">
+                            <button class="btn btn-warning btn-sm" @onclick="() => EditProduct(product.Id)">Edit</button>
+                            <button class="btn btn-danger btn-sm"
+                                    disabled="@(deletingId == product.Id)"
+                                    @onclick="() => DeleteProduct(product.Id)">
+                                @if (deletingId == product.Id)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                }
+                                else
+                                {
+                                    <span>Delete</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
 
     <div class="d-flex justify-content-between mt-3">
-        <button class="btn btn-secondary"
-                disabled="@(pageNumber <= 1)"
-                @onclick="PreviousPage">
-            Previous
-        </button>
-
-        <span class="align-self-center">
-            Page @pageNumber
-        </span>
-
-        <button class="btn btn-secondary"
-                disabled="@(products.Count < pageSize)"
-                @onclick="NextPage">
-            Next
-        </button>
+        <button class="btn btn-secondary" disabled="@(pageNumber <= 1)" @onclick="PreviousPage">Previous</button>
+        <span class="align-self-center">Page @pageNumber</span>
+        <button class="btn btn-secondary" disabled="@(products.Count < pageSize)" @onclick="NextPage">Next</button>
     </div>
 }
 
 @code {
-
     private List<ProductDOT> products = new();
-
     private string? searchName;
     private decimal? minPrice;
     private decimal? maxPrice;
-
     private int pageNumber = 1;
     private int pageSize = 10;
-
     private string? errorMessage;
     private int? deletingId;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadProducts();
-    }
+    protected override async Task OnInitializedAsync() => await LoadProducts();
 
     private async Task LoadProducts()
     {
         try
         {
             errorMessage = null;
-
-            products = await ProductService.GetProducts(
-                searchName,
-                minPrice,
-                maxPrice,
-                pageNumber,
-                pageSize);
+            products = await ProductService.GetProducts(searchName, minPrice, maxPrice, pageNumber, pageSize);
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
-            Console.WriteLine(ex);
-
             products = new List<ProductDOT>();
         }
     }
 
-    private async Task Search()
-    {
-        pageNumber = 1;
-        await LoadProducts();
-    }
+    private async Task Search() { pageNumber = 1; await LoadProducts(); }
+    private async Task NextPage() { pageNumber++; await LoadProducts(); }
+    private async Task PreviousPage() { if (pageNumber > 1) { pageNumber--; await LoadProducts(); } }
 
-    private async Task NextPage()
-    {
-        pageNumber++;
-        await LoadProducts();
-    }
-
-    private async Task PreviousPage()
-    {
-        if (pageNumber > 1)
-        {
-            pageNumber--;
-            await LoadProducts();
-        }
-    }
-
-    private void EditProduct(int id)
-    {
-        Navigation.NavigateTo($"/EditProduct/{id}");
-    }
-
-    private void AddProduct()
-    {
-        Navigation.NavigateTo("/AddProduct");
-    }
+    private void EditProduct(int id) => Navigation.NavigateTo($"/EditProduct/{id}");
+    private void AddProduct() => Navigation.NavigateTo("/AddProduct");
 
     private async Task DeleteProduct(int id)
     {
         try
         {
-            bool confirmed = await JS.InvokeAsync<bool>(
-                "confirm",
-                $"Are you sure you want to delete product #{id}?"
-            );
-
-            if (!confirmed)
-                return;
+            bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete product #{id}?");
+            if (!confirmed) return;
 
             deletingId = id;
-
             await ProductService.DeleteProductById(id);
-
             await LoadProducts();
         }
         catch (Exception ex)
         {
             errorMessage = $"Delete failed: {ex.Message}";
-            Console.WriteLine(ex);
         }
         finally
         {

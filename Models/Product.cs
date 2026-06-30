@@ -36,6 +36,7 @@ namespace BlazorAppEcommerce.Models
 
         [ForeignKey("CategoryId")]
         public virtual Category? Category { get; set; }
+        public string? ImageUrl { get; set; }
         public virtual ICollection<Review>? Reviews { get; set; } = new List<Review>();
         [NotMapped]
         public decimal OverallRating =>
